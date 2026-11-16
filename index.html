@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Osztály-pontgyűjtő</title>
+<style>
+  :root {
+    --bg1: #fff7e6; --bg2: #e6f7ff;
+    --ink: #2d2a4a; --muted: #6b6890;
+    --card: #ffffff; --line: #e4e0f5;
+    --pri: #6c4cf5; --pri2: #8f75ff;
+    --ok: #22b573; --warn: #ff8a3d; --bad: #ef476f;
+    --radius: 22px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Segoe UI", "Trebuchet MS", system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    min-height: 100vh;
+  }
+  button, select, input { font: inherit; }
+  button {
+    cursor: pointer; border: none; border-radius: 14px;
+    padding: .6em 1.1em; font-weight: 700;
+    background: var(--pri); color: #fff;
+    box-shadow: 0 4px 0 rgba(0,0,0,.15);
+    transition: transform .08s;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.15); }
+  button.ghost { background: #fff; color: var(--ink); border: 2px solid var(--line); }
+  button.ok { background: var(--ok); }
+  button.warn { background: var(--warn); }
+  button.bad { background: var(--bad); }
+  input[type=text], input[type=number], select {
+    padding: .55em .8em; border-radius: 12px; border: 2px solid var(--line);
+    background: #fff; color: var(--ink);
+  }
+  h1 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.6rem); }
+  h2 { margin: .2em 0 .6em; }
+  .hidden { display: none !important; }
+
+  /* ---------- Kezdőképernyő ---------- */
+  #setup { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+  #setup header { text-align: center; margin-bottom: 20px; }
+  #setup header p { color: var(--muted); font-size: 1.15rem; }
+  .section {
+    background: var(--card); border-radius: var(--radius); padding: 18px 20px;
+    margin-bottom: 18px; box-shadow: 0 6px 20px rgba(80,60,160,.08);
+  }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .choice {
+    border: 3px solid var(--line); border-radius: 18px; padding: 14px; text-align: center;
+    cursor: pointer; background: #fff; user-select: none;
+  }
+  .choice .big { font-size: 2.6rem; line-height: 1.2; }
+  .choice .lbl { font-weight: 800; font-size: 1.15rem; margin-top: 4px; }
+  .choice .sub { color: var(--muted); font-size: .95rem; }
+  .choice.sel { border-color: var(--pri); background: #f3efff; box-shadow: 0 0 0 4px rgba(108,76,245,.15); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .note { color: var(--warn); font-weight: 700; font-size: .95rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; background: #f3efff;
+    border-radius: 999px; padding: 6px 8px 6px 14px; font-weight: 700;
+  }
+  .chip button { padding: 2px 9px; border-radius: 999px; background: var(--bad); font-size: .85rem; box-shadow: none; }
+  .start { text-align: center; }
+  .start button { font-size: 1.5rem; padding: .7em 2em; }
+
+  /* ---------- Fő képernyő ---------- */
+  #main { padding: 14px 16px 40px; }
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+    background: var(--card); border-radius: var(--radius); padding: 12px 16px;
+    box-shadow: 0 6px 20px rgba(80,60,160,.08); margin-bottom: 16px;
+  }
+  .topbar .title { display: flex; align-items: center; gap: 12px; }
+  .daybadge { background: #fff1d6; color: #8a5a00; border-radius: 999px; padding: 4px 12px; font-weight: 800; }
+  .topbar .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .topbar .actions button { padding: .5em .9em; }
+  .actbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; font-size: 1.15rem; font-weight: 700; }
+  .actbar .act {
+    background: #fff; color: var(--ink); border: 3px solid var(--line); box-shadow: none;
+    padding: .4em 1em; border-radius: 999px;
+  }
+  .actbar .act.sel { border-color: var(--pri); background: var(--pri); color: #fff; }
+
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--card); border-radius: var(--radius); padding: 14px;
+    box-shadow: 0 6px 20px rgba(80,60,160,.1); display: flex; flex-direction: column; gap: 10px;
+    position: relative; overflow: hidden;
+  }
+  .card.done { box-shadow: 0 0 0 4px gold, 0 6px 20px rgba(80,60,160,.1); }
+  .card .head { display: flex; align-items: center; gap: 10px; }
+  .card .avatar { font-size: 2.4rem; cursor: pointer; }
+  .card .nick { font-size: 1.5rem; font-weight: 800; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .score { font-size: 2.2rem; font-weight: 900; color: var(--pri); }
+  .card .today { color: var(--muted); font-weight: 700; }
+  .card .btns { display: flex; gap: 10px; }
+  .card .btns .plus { flex: 1; font-size: 2rem; padding: .25em; background: var(--ok); }
+  .card .btns .undo { font-size: 1.4rem; background: #fff; color: var(--ink); border: 2px solid var(--line); }
+
+  /* Világok */
+  .world { position: relative; border-radius: 16px; overflow: hidden; }
+  .fig { position: absolute; font-size: 2.2rem; transition: all .8s cubic-bezier(.34,1.56,.64,1); transform: translate(-50%, 50%); }
+  .fig.hop { animation: hop .6s; }
+  @keyframes hop { 0%,100% { margin-bottom: 0; } 40% { margin-bottom: 26px; } }
+
+  .w-path { height: 120px; background: linear-gradient(#bfe8ff 0 45%, #9be37a 45%); }
+  .w-path .road {
+    position: absolute; left: 6%; right: 6%; bottom: 26px; height: 18px;
+    background: #e8c88a; border-radius: 9px; border-top: 3px dashed #c9a25d;
+  }
+  .w-path .castle { position: absolute; right: 2%; bottom: 30px; font-size: 3.3rem; }
+  .w-path .sun { position: absolute; left: 8px; top: 4px; font-size: 1.6rem; }
+
+  .w-tree { height: 240px; background: linear-gradient(#cdeeff, #eaf8ff 70%, #9be37a 70%); }
+  .w-tree .trunk {
+    position: absolute; left: 50%; bottom: 0; width: 34px; height: 82%; transform: translateX(-50%);
+    background: repeating-linear-gradient(#9b6a3c 0 14px, #8a5a2f 14px 18px); border-radius: 8px;
+  }
+  .w-tree .crown { position: absolute; left: 50%; top: 2px; transform: translateX(-50%); font-size: 4rem; }
+  .w-tree .goal { position: absolute; left: 50%; top: 0; transform: translateX(10px); font-size: 1.6rem; }
+
+  .w-basket { height: 150px; background: linear-gradient(#e7f7e2, #c8ecbd); display: flex; align-items: center; gap: 12px; padding: 10px; }
+  .w-basket .bush { font-size: 2.6rem; }
+  .w-basket .bkt { flex: 1; position: relative; height: 100%; }
+  .w-basket .berries {
+    position: absolute; left: 6%; right: 6%; bottom: 34px; display: flex; flex-wrap: wrap-reverse;
+    justify-content: center; font-size: 1.15rem; line-height: 1.05; max-height: 85px; overflow: hidden;
+  }
+  .w-basket .basket { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 3.6rem; line-height: 1; }
+  .w-basket .berries span { animation: drop .5s ease-out; }
+  @keyframes drop { from { transform: translateY(-40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .bar { height: 12px; background: #eee9ff; border-radius: 999px; overflow: hidden; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--pri2), var(--ok)); border-radius: 999px; transition: width .8s; }
+
+  .empty { text-align: center; color: var(--muted); font-size: 1.3rem; padding: 40px; }
+
+  /* Modális ablak */
+  .modal-bg { position: fixed; inset: 0; background: rgba(30,20,60,.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .modal { background: #fff; border-radius: var(--radius); padding: 20px 22px; max-width: 900px; width: 100%; max-height: 90vh; overflow: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 1.1rem; }
+  th, td { border-bottom: 2px solid var(--line); padding: 8px 10px; text-align: left; }
+  th { background: #f6f3ff; }
+  td.num, th.num { text-align: center; }
+  .iconpick { display: flex; flex-wrap: wrap; gap: 6px; font-size: 2.2rem; }
+  .iconpick span { cursor: pointer; padding: 4px; border-radius: 10px; }
+  .iconpick span:hover { background: #f3efff; }
+
+  #fx { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+  .toast {
+    position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 60;
+    background: var(--ink); color: #fff; padding: 12px 22px; border-radius: 999px; font-weight: 700; font-size: 1.1rem;
+  }
+  .goalbanner {
+    position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(0); z-index: 45;
+    font-size: clamp(2rem, 6vw, 5rem); font-weight: 900; color: #fff; text-shadow: 0 4px 0 var(--pri), 0 0 30px gold;
+    pointer-events: none; text-align: center; animation: pop 2.6s forwards;
+  }
+  @keyframes pop { 10% { transform: translate(-50%,-50%) scale(1.15); } 20%,80% { transform: translate(-50%,-50%) scale(1); opacity: 1; } 100% { transform: translate(-50%,-50%) scale(1); opacity: 0; } }
+
+  body.projector #grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  body.projector .card .nick { font-size: 1.9rem; }
+</style>
+</head>
+<body>
+
+<!-- ================= KEZDŐKÉPERNYŐ ================= -->
+<div id="setup">
+  <header>
+    <h1>🌟 Osztály-pontgyűjtő 🌟</h1>
+    <p>Válaszd ki, hogyan nézzen ki a játék, add hozzá a tanulókat, és indulhat!</p>
+  </header>
+
+  <div class="section">
+    <h2>1. Hogyan nézzenek ki a tanulók?</h2>
+    <div class="choices" data-group="look">
+      <div class="choice" data-val="animals"><div class="big">🐶🐱🐰</div><div class="lbl">Kisállatok</div></div>
+      <div class="choice" data-val="flowers"><div class="big">🌷🌻🌼</div><div class="lbl">Virágok</div></div>
+      <div class="choice" data-val="shapes"><div class="big">🔴⭐🔷</div><div class="lbl">Színes formák</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. Milyen jutalom-animáció legyen?</h2>
+    <div class="choices" data-group="anim">
+      <div class="choice" data-val="confetti"><div class="big">🎉</div><div class="lbl">Konfetti</div></div>
+      <div class="choice" data-val="petals"><div class="big">🌸</div><div class="lbl">Virágszirom-eső</div></div>
+      <div class="choice" data-val="stars"><div class="big">✨</div><div class="lbl">Csillagfény</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. Melyik világban játszunk?</h2>
+    <div class="choices" data-group="world">
+      <div class="choice" data-val="path"><div class="big">🛤️🏰</div><div class="lbl">Ösvény a kastélyhoz</div><div class="sub">Minden ponttal egy lépés előre</div></div>
+      <div class="choice" data-val="tree"><div class="big">🌳⬆️</div><div class="lbl">Fára mászás</div><div class="sub">Minden ponttal feljebb</div></div>
+      <div class="choice" data-val="basket"><div class="big">🫐🧺</div><div class="lbl">Erdei bogyógyűjtés</div><div class="sub">Minden ponttal telik a kosár</div></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label for="goal"><b>Hány pont kell a célhoz?</b></label>
+      <input type="number" id="goal" min="3" max="200" value="20" style="width:100px">
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Tanulók</h2>
+    <div class="row">
+      <input type="text" id="newNick" maxlength="20" placeholder="Becenév (pl. Napsugár)" style="flex:1;min-width:200px">
+      <button id="addNick" class="ok">➕ Hozzáadás</button>
+    </div>
+    <p class="note">⚠️ Csak becenevet írj! Valódi teljes név és más személyes adat ne kerüljön az appba.</p>
+    <div class="chips" id="nickList"></div>
+  </div>
+
+  <div class="section">
+    <h2>5. Mentés betöltése (nem kötelező)</h2>
+    <div class="row">
+      <button class="ghost" data-action="import">📂 Mentés betöltése (JSON)</button>
+    </div>
+  </div>
+
+  <div class="start"><button id="startBtn">▶️ Indulhat a játék!</button></div>
+</div>
+
+<!-- ================= FŐ KÉPERNYŐ ================= -->
+<div id="main" class="hidden">
+  <div class="topbar">
+    <div class="title">
+      <h1 id="mainTitle">🌟 Osztály-pontgyűjtő</h1>
+      <span class="daybadge" id="dayBadge"></span>
+    </div>
+    <div class="actions">
+      <button class="ok" data-action="summary">📊 Napi összesítő</button>
+      <button class="warn" data-action="newday">🌅 Új nap</button>
+      <button class="ghost" data-action="export">💾 Export</button>
+      <button class="ghost" data-action="import">📂 Import</button>
+      <button class="ghost" data-action="fullscreen">⛶ Teljes képernyő</button>
+      <button class="ghost" data-action="settings">⚙️ Beállítások</button>
+    </div>
+  </div>
+  <div class="actbar" id="actbar"></div>
+  <div id="grid"></div>
+</div>
+
+<canvas id="fx"></canvas>
+<input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+
+<script>
+"use strict";
+/* ================= Adatok ================= */
+const STORE_KEY = "osztaly-pontgyujto-v1";
+const ICONS = {
+  animals: ["🐶","🐱","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐸","🐵","🐧","🦉","🐢","🦄","🐹","🐮","🐷","🐔","🦔","🐝","🐞","🦋","🐳"],
+  flowers: ["🌷","🌻","🌼","🌸","🌺","🌹","💐","🪻","🏵️","🌱","🍀","🌵","🌿","🍄","🪷","🌾"],
+  shapes:  ["🔴","🟠","🟡","🟢","🔵","🟣","🟤","⭐","💖","🔷","🔶","🟥","🟦","🟩","🟨","🟪","💠","🌙","❤️","💜"]
+};
+const DEFAULT_ACTS = ["Általános", "Matek", "Olvasás", "Írás", "Segítőkészség", "Csapatmunka"];
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function freshState() {
+  return {
+    version: 1,
+    settings: { look: "animals", anim: "confetti", world: "path", goal: 20 },
+    students: [],          // { id, nick, icon, total }
+    activities: DEFAULT_ACTS.slice(),
+    currentAct: "Általános",
+    day: { date: todayStr(), number: 1 },
+    log: [],               // a mai pontok: { sid, act, t }
+    history: [],           // lezárt napok: { date, number, rows: [{nick, act, pts}] }
+    started: false
+  };
+}
+let state = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) { const s = JSON.parse(raw); return Object.assign(freshState(), s); }
+  } catch (e) {}
+  return freshState();
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch (e) { toast("⚠️ Nem sikerült menteni a böngészőbe!"); }
+}
+const uid = () => Math.random().toString(36).slice(2, 10);
+const $ = (s, el = document) => el.querySelector(s);
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "style") e.style.cssText = v;
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+function pickIcon(i) { const list = ICONS[state.settings.look]; return list[i % list.length]; }
+
+/* ================= Kezdőképernyő ================= */
+function renderSetup() {
+  document.querySelectorAll(".choices").forEach(group => {
+    const key = group.dataset.group;
+    group.querySelectorAll(".choice").forEach(c => c.classList.toggle("sel", c.dataset.val === state.settings[key]));
+  });
+  $("#goal").value = state.settings.goal;
+  const list = $("#nickList"); list.innerHTML = "";
+  if (!state.students.length) list.append(el("span", { style: "color:var(--muted)" }, "Még nincs tanuló felvéve."));
+  state.students.forEach(s => {
+    list.append(el("span", { class: "chip" }, s.icon + " " + s.nick,
+      el("button", { title: "Törlés", onclick: () => removeStudent(s.id) }, "✕")));
+  });
+  $("#startBtn").textContent = state.started ? "▶️ Vissza a játékhoz" : "▶️ Indulhat a játék!";
+}
+document.querySelectorAll(".choices").forEach(group => {
+  group.addEventListener("click", e => {
+    const c = e.target.closest(".choice"); if (!c) return;
+    const key = group.dataset.group;
+    state.settings[key] = c.dataset.val;
+    if (key === "look") state.students.forEach((s, i) => s.icon = pickIcon(i));
+    save(); renderSetup();
+  });
+});
+$("#goal").addEventListener("change", e => {
+  let v = parseInt(e.target.value, 10);
+  if (!(v >= 3)) v = 3; if (v > 200) v = 200;
+  state.settings.goal = v; save(); renderSetup();
+});
+function addStudent() {
+  const inp = $("#newNick");
+  const nick = inp.value.trim().replace(/\s+/g, " ");
+  if (!nick) return;
+  if (nick.split(" ").length >= 2 && !confirm("Ez teljes névnek tűnik. Biztosan becenév?\n(Valódi teljes név ne kerüljön az appba!)")) return;
+  if (state.students.some(s => s.nick.toLowerCase() === nick.toLowerCase())) { toast("Ez a becenév már szerepel."); return; }
+  state.students.push({ id: uid(), nick, icon: pickIcon(state.students.length), total: 0 });
+  inp.value = ""; inp.focus();
+  save(); renderSetup();
+}
+$("#addNick").addEventListener("click", addStudent);
+$("#newNick").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
+function removeStudent(id) {
+  const s = state.students.find(x => x.id === id);
+  if (!s || !confirm(`Biztosan törlöd: ${s.nick}?\nA pontjai is elvesznek.`)) return;
+  state.students = state.students.filter(x => x.id !== id);
+  state.log = state.log.filter(l => l.sid !== id);
+  save(); renderSetup();
+}
+$("#startBtn").addEventListener("click", () => {
+  if (!state.students.length) { toast("Előbb vegyél fel legalább egy tanulót!"); return; }
+  state.started = true; save(); showMain();
+});
+
+/* ================= Fő képernyő ================= */
+function showMain() { $("#setup").classList.add("hidden"); $("#main").classList.remove("hidden"); renderMain(); }
+function showSetup() { $("#main").classList.add("hidden"); $("#setup").classList.remove("hidden"); renderSetup(); }
+
+function todayPts(sid) { return state.log.filter(l => l.sid === sid).length; }
+
+function renderMain() {
+  const worldName = { path: "🏰 Ösvény a kastélyhoz", tree: "🌳 Fára mászás", basket: "🧺 Bogyógyűjtés" }[state.settings.world];
+  $("#mainTitle").textContent = worldName;
+  $("#dayBadge").textContent = `${state.day.number}. nap · ${state.day.date.replaceAll("-", ".")}.`;
+  // tevékenységek
+  const ab = $("#actbar"); ab.innerHTML = "";
+  ab.append(el("span", {}, "Tevékenység:"));
+  state.activities.forEach(a => ab.append(el("button", {
+    class: "act" + (a === state.currentAct ? " sel" : ""),
+    onclick: () => { state.currentAct = a; save(); renderMain(); }
+  }, a)));
+  ab.append(el("button", { class: "act", title: "Új tevékenység", onclick: addActivity }, "➕"));
+  // kártyák
+  const g = $("#grid"); g.innerHTML = "";
+  if (!state.students.length) { g.append(el("div", { class: "empty" }, "Nincs tanuló. Menj a ⚙️ Beállításokba, és vegyél fel valakit!")); return; }
+  state.students.forEach(s => g.append(buildCard(s)));
+}
+
+function buildCard(s) {
+  const goal = state.settings.goal;
+  const pct = Math.min(s.total / goal, 1);
+  const done = s.total >= goal;
+  const card = el("div", { class: "card" + (done ? " done" : ""), "data-id": s.id });
+  card.append(el("div", { class: "head" },
+    el("span", { class: "avatar", title: "Figura cseréje", onclick: () => chooseIcon(s.id) }, s.icon),
+    el("span", { class: "nick", title: s.nick }, s.nick + (done ? " 👑" : "")),
+    el("span", { class: "score" }, String(s.total))
+  ));
+  card.append(buildWorld(s, pct));
+  card.append(el("div", { class: "bar" }, el("div", { style: `width:${pct*100}%` })));
+  card.append(el("div", { class: "today" }, `Ma: +${todayPts(s.id)} · Cél: ${Math.min(s.total, goal)}/${goal}`));
+  card.append(el("div", { class: "btns" },
+    el("button", { class: "plus", onclick: (e) => addPoint(s.id, e) }, "+1"),
+    el("button", { class: "undo", title: "Visszavonás", onclick: () => undoPoint(s.id) }, "↶")
+  ));
+  return card;
+}
+
+function buildWorld(s, pct) {
+  const w = state.settings.world;
+  if (w === "path") {
+    const box = el("div", { class: "world w-path" },
+      el("span", { class: "sun" }, "☀️"), el("div", { class: "road" }), el("span", { class: "castle" }, "🏰"));
+    box.append(el("span", { class: "fig", style: `left:${8 + pct * 74}%; bottom:44px` }, s.icon));
+    return box;
+  }
+  if (w === "tree") {
+    const box = el("div", { class: "world w-tree" },
+      el("div", { class: "trunk" }), el("span", { class: "crown" }, "🌳"), el("span", { class: "goal" }, "⭐"));
+    box.append(el("span", { class: "fig", style: `left:50%; bottom:${8 + pct * 150}px` }, s.icon));
+    return box;
+  }
+  // basket
+  const shown = Math.min(s.total, state.settings.goal);
+  const berries = el("div", { class: "berries" });
+  const kinds = ["🫐", "🍓", "🍒"];
+  for (let i = 0; i < shown; i++) berries.append(el("span", {}, kinds[i % 3]));
+  return el("div", { class: "world w-basket" },
+    el("span", { class: "fig", style: "position:static;transform:none;font-size:2.6rem" }, s.icon),
+    el("div", { class: "bkt" }, berries, el("span", { class: "basket" }, "🧺")),
+    el("span", { class: "bush" }, "🌳"));
+}
+
+function addPoint(sid, ev) {
+  const s = state.students.find(x => x.id === sid); if (!s) return;
+  const before = s.total;
+  s.total++;
+  state.log.push({ sid, act: state.currentAct, t: Date.now() });
+  save(); renderMain();
+  const card = document.querySelector(`.card[data-id="${sid}"]`);
+  const fig = card && card.querySelector(".fig"); if (fig) { fig.classList.remove("hop"); void fig.offsetWidth; fig.classList.add("hop"); }
+  const r = card ? card.getBoundingClientRect() : { left: innerWidth/2, top: innerHeight/2, width: 0, height: 0 };
+  const reached = before < state.settings.goal && s.total >= state.settings.goal;
+  celebrate(r.left + r.width/2, r.top + r.height/3, reached);
+  if (reached) goalBanner(s);
+}
+function undoPoint(sid) {
+  const s = state.students.find(x => x.id === sid); if (!s) return;
+  let idx = -1;
+  for (let i = state.log.length - 1; i >= 0; i--) if (state.log[i].sid === sid) { idx = i; break; }
+  if (idx < 0) { toast("Ma még nincs visszavonható pontja."); return; }
+  state.log.splice(idx, 1);
+  s.total = Math.max(0, s.total - 1);
+  save(); renderMain(); toast(`↶ Visszavonva: ${s.nick} −1`);
+}
+function addActivity() {
+  const n = (prompt("Új tevékenység neve (pl. Rajz):") || "").trim();
+  if (!n) return;
+  if (!state.activities.includes(n)) state.activities.push(n);
+  state.currentAct = n; save(); renderMain();
+}
+function chooseIcon(sid) {
+  const s = state.students.find(x => x.id === sid);
+  const pick = el("div", { class: "iconpick" });
+  ICONS[state.settings.look].forEach(ic => pick.append(el("span", { onclick: () => { s.icon = ic; save(); closeModal(); renderMain(); } }, ic)));
+  openModal(el("div", {}, el("h2", {}, `Válassz figurát: ${s.nick}`), pick,
+    el("div", { class: "row", style: "margin-top:14px" }, el("button", { class: "ghost", onclick: closeModal }, "Mégse"))));
+}
+
+/* ================= Napi összesítő és új nap ================= */
+function buildSummaryTable(rowsByStudent, acts) {
+  const t = el("table");
+  const hr = el("tr", {}, el("th", {}, "Tanuló"));
+  acts.forEach(a => hr.append(el("th", { class: "num" }, a)));
+  hr.append(el("th", { class: "num" }, "Összesen ma"));
+  t.append(hr);
+  rowsByStudent.forEach(r => {
+    const tr = el("tr", {}, el("td", {}, r.label));
+    acts.forEach(a => tr.append(el("td", { class: "num" }, String(r.byAct[a] || 0))));
+    tr.append(el("td", { class: "num" }, el("b", {}, String(r.sum))));
+    t.append(tr);
+  });
+  return t;
+}
+function todayRows() {
+  return state.students.map(s => {
+    const byAct = {}; let sum = 0;
+    state.log.filter(l => l.sid === s.id).forEach(l => { byAct[l.act] = (byAct[l.act] || 0) + 1; sum++; });
+    return { label: `${s.icon} ${s.nick}`, nick: s.nick, byAct, sum, total: s.total };
+  }).sort((a, b) => b.sum - a.sum);
+}
+function showSummary() {
+  const rows = todayRows();
+  const acts = state.activities.filter(a => rows.some(r => r.byAct[a]));
+  const total = rows.reduce((x, r) => x + r.sum, 0);
+  const box = el("div", {}, el("h2", {}, `📊 Napi összesítő – ${state.day.number}. nap (${state.day.date.replaceAll("-", ".")}.)`));
+  box.append(el("p", {}, `Ma összesen ${total} pont született.`));
+  if (total) box.append(buildSummaryTable(rows, acts));
+  else box.append(el("p", { style: "color:var(--muted)" }, "Ma még nem volt pontadás."));
+  if (state.history.length) {
+    box.append(el("h2", { style: "margin-top:22px" }, "Korábbi napok"));
+    const t = el("table", {}, el("tr", {}, el("th", {}, "Nap"), el("th", {}, "Dátum"), el("th", { class: "num" }, "Pontok"), el("th", {}, "Legtöbb pont")));
+    state.history.slice().reverse().forEach(h => {
+      const per = {}; h.rows.forEach(r => per[r.nick] = (per[r.nick] || 0) + r.pts);
+      const sum = Object.values(per).reduce((a, b) => a + b, 0);
+      const best = Object.entries(per).sort((a, b) => b[1] - a[1])[0];
+      t.append(el("tr", {}, el("td", {}, `${h.number}. nap`), el("td", {}, h.date.replaceAll("-", ".") + "."),
+        el("td", { class: "num" }, String(sum)), el("td", {}, best ? `${best[0]} (${best[1]})` : "–")));
+    });
+    box.append(t);
+  }
+  box.append(el("div", { class: "row", style: "margin-top:16px" }, el("button", { onclick: closeModal }, "Bezárás")));
+  openModal(box);
+}
+function newDay() {
+  if (!confirm("Lezárod a mai napot és kezdesz egy újat?\nAz összpontszámok és az előrehaladás megmaradnak, a „Ma” számlálók nullázódnak.")) return;
+  const rows = [];
+  state.log.forEach(l => {
+    const s = state.students.find(x => x.id === l.sid); if (!s) return;
+    const r = rows.find(x => x.nick === s.nick && x.act === l.act);
+    if (r) r.pts++; else rows.push({ nick: s.nick, act: l.act, pts: 1 });
+  });
+  state.history.push({ date: state.day.date, number: state.day.number, rows });
+  state.day = { date: todayStr(), number: state.day.number + 1 };
+  state.log = [];
+  save(); renderMain(); toast(`🌅 Jó reggelt! Kezdődik a ${state.day.number}. nap.`);
+}
+
+/* ================= Export / Import ================= */
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: `osztaly-pontok-${todayStr()}.json` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast("💾 Mentés letöltve.");
+}
+$("#fileIn").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!data || !Array.isArray(data.students) || !data.settings) throw new Error("rossz fájl");
+      if (!confirm("A betöltés felülírja a mostani adatokat. Folytatod?")) return;
+      state = Object.assign(freshState(), data);
+      save();
+      if (state.started) showMain(); else showSetup();
+      toast("📂 Mentés betöltve.");
+    } catch (err) { alert("Ez a fájl nem egy érvényes pontgyűjtő-mentés."); }
+  };
+  r.readAsText(f, "utf-8");
+  e.target.value = "";
+});
+
+/* ================= Gombok ================= */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-action]"); if (!b) return;
+  const a = b.dataset.action;
+  if (a === "summary") showSummary();
+  else if (a === "newday") newDay();
+  else if (a === "export") exportJSON();
+  else if (a === "import") $("#fileIn").click();
+  else if (a === "settings") showSetup();
+  else if (a === "fullscreen") {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
+  }
+});
+document.addEventListener("fullscreenchange", () => document.body.classList.toggle("projector", !!document.fullscreenElement));
+
+/* ================= Modális ablak, üzenet ================= */
+let modalEl = null;
+function openModal(content) {
+  closeModal();
+  modalEl = el("div", { class: "modal-bg", onclick: e => { if (e.target === modalEl) closeModal(); } }, el("div", { class: "modal" }, content));
+  document.body.append(modalEl);
+}
+function closeModal() { if (modalEl) { modalEl.remove(); modalEl = null; } }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+let toastTimer;
+function toast(msg) {
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const t = el("div", { class: "toast" }, msg); document.body.append(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 2200);
+}
+function goalBanner(s) {
+  const b = el("div", { class: "goalbanner" }, `${s.icon} ${s.nick} célba ért! 🏆`);
+  document.body.append(b); setTimeout(() => b.remove(), 2700);
+}
+
+/* ================= Animációk ================= */
+const cv = $("#fx"), cx = cv.getContext("2d");
+let parts = [], running = false;
+function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }
+addEventListener("resize", resize); resize();
+const COLORS = ["#ff4d6d", "#ffbe0b", "#3a86ff", "#8338ec", "#06d6a0", "#fb5607", "#ff70a6"];
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+function celebrate(x, y, big) {
+  const kind = state.settings.anim;
+  const n = big ? 220 : 70;
+  for (let i = 0; i < n; i++) {
+    if (kind === "confetti") {
+      const ang = rnd(-Math.PI * .95, -Math.PI * .05), sp = rnd(4, big ? 15 : 10);
+      parts.push({ k: "c", x: big ? rnd(0, innerWidth) : x, y: big ? -10 : y, vx: big ? rnd(-2, 2) : Math.cos(ang) * sp, vy: big ? rnd(2, 6) : Math.sin(ang) * sp,
+        w: rnd(6, 12), h: rnd(4, 8), r: rnd(0, 6), vr: rnd(-.3, .3), c: COLORS[i % COLORS.length], life: 0, max: rnd(100, 140) });
+    } else if (kind === "petals") {
+      parts.push({ k: "p", x: big ? rnd(0, innerWidth) : x + rnd(-160, 160), y: big ? rnd(-200, 0) : y - rnd(60, 220), vx: rnd(-.6, .6), vy: rnd(1.2, 2.6),
+        s: rnd(6, 11), r: rnd(0, 6), vr: rnd(-.05, .05), ph: rnd(0, 6), c: ["#ffb3c6", "#ff8fab", "#ffc2d1", "#fde2e4", "#ffafcc"][i % 5], life: 0, max: rnd(120, 160) });
+    } else {
+      const ang = rnd(0, Math.PI * 2), sp = rnd(1, big ? 9 : 6);
+      parts.push({ k: "s", x: big ? rnd(0, innerWidth) : x, y: big ? rnd(0, innerHeight) : y, vx: big ? 0 : Math.cos(ang) * sp, vy: big ? 0 : Math.sin(ang) * sp,
+        s: rnd(5, 12), ph: rnd(0, 6), c: ["#fff3b0", "#ffd60a", "#ffffff", "#ffe066"][i % 4], life: 0, max: rnd(70, 120), delay: big ? rnd(0, 40) : 0 });
+    }
+  }
+  if (!running) { running = true; requestAnimationFrame(tick); }
+}
+function star(x, y, r) {
+  cx.beginPath();
+  for (let i = 0; i < 8; i++) { const rr = i % 2 ? r * .35 : r, a = i * Math.PI / 4; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  cx.closePath(); cx.fill();
+}
+function tick() {
+  cx.clearRect(0, 0, innerWidth, innerHeight);
+  parts = parts.filter(p => p.life < p.max);
+  for (const p of parts) {
+    if (p.delay > 0) { p.delay--; continue; }
+    p.life++;
+    const fade = 1 - Math.max(0, (p.life - p.max * .7) / (p.max * .3));
+    cx.globalAlpha = Math.max(0, fade);
+    if (p.k === "c") {
+      p.vy += .25; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.w/2, -p.h/2, p.w, p.h); cx.restore();
+    } else if (p.k === "p") {
+      p.ph += .05; p.x += p.vx + Math.sin(p.ph) * 1.2; p.y += p.vy; p.r += p.vr;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r + Math.sin(p.ph) * .5); cx.fillStyle = p.c;
+      cx.beginPath(); cx.ellipse(0, 0, p.s, p.s * .55, 0, 0, Math.PI * 2); cx.fill(); cx.restore();
+    } else {
+      p.vx *= .95; p.vy *= .95; p.x += p.vx; p.y += p.vy; p.ph += .3;
+      const tw = .55 + .45 * Math.sin(p.ph);
+      cx.fillStyle = p.c; cx.shadowColor = "#ffd60a"; cx.shadowBlur = 14;
+      star(p.x, p.y, p.s * tw); cx.shadowBlur = 0;
+    }
+  }
+  cx.globalAlpha = 1;
+  if (parts.length) requestAnimationFrame(tick); else { running = false; cx.clearRect(0, 0, innerWidth, innerHeight); }
+}
+
+/* ================= Indulás ================= */
+if (state.day.date !== todayStr() && state.started) {
+  setTimeout(() => toast("📅 Új nap van? Nyomd meg az „🌅 Új nap” gombot!"), 600);
+}
+if (state.started && state.students.length) showMain(); else showSetup();
+</script>
+</body>
+</html>
